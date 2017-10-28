@@ -143,20 +143,24 @@ func (s Session) GetSessionID() {
 
 func (s Session) Encrypt(plaintext string) (int, string){
     random_length := C.olm_encrypt_random_length(s.ptr)
-    random_buffer := make([]byte, random_length)
+    random_buffer := []byte{0}
+    
+    if random_length > 0 {
+        random_buffer = make([]byte, random_length)
 
-    _, err := rand.Read(random_buffer)
+        _, err := rand.Read(random_buffer)
 
-    if err != nil {
-        // currently we panic when we don't have enough randomness but it might
-        // be better to return an error instead. however I feel like other
-        // programmers might not recognize what a huge issue not having
-        // randomness is so I chose the crash and burn approach
-        panic(err)
+        if err != nil {
+            // currently we panic when we don't have enough randomness but it might
+            // be better to return an error instead. however I feel like other
+            // programmers might not recognize what a huge issue not having
+            // randomness is so I chose the crash and burn approach
+            panic(err)
+        }
     }
-
+    
     plaintext_buffer := []byte(plaintext)
-
+    
     message_type := C.olm_encrypt_message_type(s.ptr)
     message_length := C.olm_encrypt_message_length(
         s.ptr, C.size_t(len(plaintext_buffer)),
@@ -180,6 +184,8 @@ func (s Session) Decrypt(message_type int, message string) (string) {
         s.ptr, C.size_t(message_type),
         unsafe.Pointer(&message_buffer[0]), C.size_t(len(message_buffer)),
     )
+    
+    message_buffer = []byte(message)
     plaintext_buffer := make([]byte, max_plaintext_length)
     plaintext_length := C.olm_decrypt(
         s.ptr, C.size_t(message_type),
